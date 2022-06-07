@@ -1,4 +1,4 @@
-# Cute
+# (exe)Cute
 
 ## Sync mode
 
