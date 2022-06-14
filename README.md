@@ -16,10 +16,6 @@ Command groups may contain one or more commands. Command groups are executed in 
 cute < commands.txt
 ```
 
-```bash
-cat commands.txt | cute
-```
-
 ```json
 {"first":1,"first_duration":1013498000,"second":2,"second_duration":2009145208}
 {"fourth":4,"fourth_duration":5051916,"third":3,"third_duration":3009790541}
