@@ -17,7 +17,7 @@ cute < commands.txt
 ```
 
 ```bash
-commands.txt | cute
+cat commands.txt | cute
 ```
 
 ```json
