@@ -1,4 +1,6 @@
 github.com/akamensky/argparse v1.3.1 h1:kP6+OyvR0fuBH6UhbE6yh/nskrDEIQgEA1SUXDPjx4g=
 github.com/akamensky/argparse v1.3.1/go.mod h1:S5kwC7IuDcEr5VeXtGPRVZ5o/FdhcMlQz4IZQuw64xA=
+github.com/akamensky/argparse v1.3.2 h1:VnEWYHh7x3QJrNQevKn2ygzq98cIR464CMCQZfrtNrI=
+github.com/akamensky/argparse v1.3.2/go.mod h1:S5kwC7IuDcEr5VeXtGPRVZ5o/FdhcMlQz4IZQuw64xA=
 github.com/alitto/pond v1.8.0 h1:/4wnAU0vOjhsUxOxjtXuNb59oh0J+Jjukf6gtkWpGJk=
 github.com/alitto/pond v1.8.0/go.mod h1:xQn3P/sHTYcU/1BR3i86IGIrilcrGC2LiS+E2+CJWsI=
