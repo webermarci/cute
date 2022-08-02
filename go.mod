@@ -1,6 +1,6 @@
 module github.com/webermarci/cute
 
-go 1.18
+go 1.19
 
 require (
 	github.com/akamensky/argparse v1.3.2
