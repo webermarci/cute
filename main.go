@@ -53,7 +53,7 @@ func main() {
 	n := parser.Int("n", "parallel-tasks",
 		&argparse.Options{Default: runtime.NumCPU(), Help: "Number of parallel tasks"})
 	file := parser.File("f", "file", os.O_RDONLY, 0400,
-		&argparse.Options{Help: "File"})
+		&argparse.Options{Help: "File", Required: true})
 	shell := parser.String("s", "shell",
 		&argparse.Options{Default: "bash", Help: "Shell to execute the commands with"})
 
