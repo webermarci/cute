@@ -4,99 +4,56 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/akamensky/argparse"
 	"github.com/alitto/pond"
 )
 
-type CommandGroup struct {
-	Commands []Command
-}
-
-type Command struct {
-	Command string
-	Alias   string
-}
-
 type Result struct {
-	Command  string
-	Alias    string
-	Output   string
-	Duration time.Duration
+	Command  string        `json:"command"`
+	Output   string        `json:"output"`
+	Duration time.Duration `json:"duration"`
 }
 
-func parseGroups(input string) map[string]string {
-	lastQuote := rune(0)
-	f := func(c rune) bool {
-		switch {
-		case c == lastQuote:
-			lastQuote = rune(0)
-			return false
-		case lastQuote != rune(0):
-			return false
-		case unicode.In(c, unicode.Quotation_Mark):
-			lastQuote = c
-			return false
-		default:
-			return unicode.IsSpace(c)
-
-		}
-	}
-
-	items := strings.FieldsFunc(input, f)
-
-	m := make(map[string]string)
-	for _, item := range items {
-		x := strings.Split(item, "=")
-		m[x[0]] = strings.Trim(x[1], "\"")
-	}
-
-	return m
-}
-
-func execute(shell string, command Command) Result {
+func execute(shell string, command string) Result {
 	start := time.Now()
 
-	out, err := exec.Command(shell, "-c", command.Command).Output()
+	out, err := exec.Command(shell, "-c", command).Output()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	return Result{
-		Command:  command.Command,
-		Alias:    command.Alias,
+		Command:  command,
 		Output:   strings.TrimSpace(string(out)),
 		Duration: time.Since(start),
 	}
 }
 
 func main() {
-	description := `You need to pipe the commands into it:
-	    "commands.txt | cute" or "cute < commands.txt"
+	description := `cute -f commands.txt
 	    
-	    The commands.txt file should contain lines of command groups like so:
-	    first="echo hello" second="echo world"
-	    thrid="echo bye"
-
-	    Command groups may contain one or more commands. Command groups are executed in parallel, but commands in a group are sync.
+	    The commands.txt file should contain lines commands like so:
+	    echo hello
+	    echo world
+	    echo bye
 	`
 
 	parser := argparse.NewParser("cute", description)
 	version := parser.Flag("V", "version",
-		&argparse.Options{Help: "Print version"})
+		&argparse.Options{Help: "Print version information"})
 	verbose := parser.Flag("v", "verbose",
 		&argparse.Options{Help: "Verbose mode"})
 	n := parser.Int("n", "parallel-tasks",
 		&argparse.Options{Default: runtime.NumCPU(), Help: "Number of parallel tasks"})
+	file := parser.File("f", "file", os.O_RDONLY, 0400,
+		&argparse.Options{Help: "File"})
 	shell := parser.String("s", "shell",
 		&argparse.Options{Default: "bash", Help: "Shell to execute the commands with"})
 
@@ -106,86 +63,38 @@ func main() {
 	}
 
 	if *version {
-		fmt.Println("cute - v0.3")
+		fmt.Println("cute - v1.0")
 		return
 	}
 
-	info, err := os.Stdin.Stat()
-	if err != nil {
-		log.Fatal(err)
-	}
+	fileScanner := bufio.NewScanner(file)
+	fileScanner.Split(bufio.ScanLines)
 
-	if info.Mode()&os.ModeCharDevice != 0 || info.Size() <= 0 {
-		log.Fatal("Nothing is piped into")
-		return
-	}
-
-	reader := bufio.NewReader(os.Stdin)
-	var pipe []rune
-
-	for {
-		input, _, err := reader.ReadRune()
-		if err != nil && err == io.EOF {
-			break
-		}
-		pipe = append(pipe, input)
-	}
-
-	if len(pipe) == 0 {
-		log.Fatal("Nothing is piped into")
-	}
-
-	var groups []CommandGroup
 	commandCounter := 0
+	var commands []string = []string{}
 
-	for _, groupString := range strings.Split(string(pipe), "\n") {
-		group := CommandGroup{}
-		parsed := parseGroups(groupString)
-		for alias, command := range parsed {
-			group.Commands = append(group.Commands, Command{
-				Alias:   alias,
-				Command: command,
-			})
-			commandCounter++
-		}
-		groups = append(groups, group)
+	for fileScanner.Scan() {
+		commandCounter++
+		commands = append(commands, fileScanner.Text())
 	}
 
-	if len(groups) == 0 {
-		log.Fatal("Failed to parse any command groups")
-	}
+	file.Close()
 
 	pool := pond.New(*n, commandCounter)
-	groupResults := make([]map[string]any, len(groups))
 	start := time.Now()
 
-	for i, g := range groups {
+	results := make([]Result, commandCounter)
+
+	for i, command := range commands {
 		index := i
-		group := g
+		cmd := command
 
 		pool.Submit(func() {
-			results := make([]Result, len(group.Commands))
-			for j, cmd := range group.Commands {
-				results[j] = execute(*shell, cmd)
+			results[index] = execute(*shell, cmd)
 
-				if *verbose {
-					log.Printf("%s=\"%s\" returned %s in %s",
-						cmd.Alias, cmd.Command, results[j].Output, results[j].Duration)
-				}
+			if *verbose {
+				log.Printf("%s returned %s in %s", cmd, results[index].Output, results[index].Duration)
 			}
-
-			groupResult := make(map[string]any)
-			for _, result := range results {
-				parsedFloat, err := strconv.ParseFloat(result.Output, 64)
-				if err == nil {
-					groupResult[result.Alias] = parsedFloat
-				} else {
-					groupResult[result.Alias] = result.Output
-				}
-
-				groupResult[result.Alias+"_duration"] = int64(result.Duration)
-			}
-			groupResults[index] = groupResult
 		})
 	}
 
@@ -195,7 +104,7 @@ func main() {
 		log.Printf("All finished in %s\n", time.Since(start))
 	}
 
-	for _, result := range groupResults {
+	for _, result := range results {
 		data, err := json.Marshal(result)
 		if err != nil {
 			log.Fatal(err)
