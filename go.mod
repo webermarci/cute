@@ -4,5 +4,5 @@ go 1.19
 
 require (
 	github.com/akamensky/argparse v1.4.0
-	github.com/alitto/pond v1.8.1
+	github.com/alitto/pond v1.8.2
 )
